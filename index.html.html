@@ -1,0 +1,394 @@
+已為你更新轉換公式！將皮克敏餵食精華採集花瓣的估算標準調校為：1 個精華/珍珠 = 固定收成 2 片花瓣（在皮克敏頭頂為花苞狀態或進行雙倍採集時的效率）。
+你可以複製下方更新後的全代碼並儲存為 .html 檔案（例如 pikmin_tracker.html）：
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pikmin Bloom 活動任務計算器</title>
+  <style>
+    :root {
+      --bg-color: #f4fbf4;
+      --primary-green: #76c043;
+      --accent-green: #4f9628;
+      --card-bg: #ffffff;
+      --text-main: #2c3e50;
+      --border-color: #e0eee0;
+      
+      /* 花朵與精華/珍珠顏色 */
+      --flower-white: #f8f9fa;
+      --flower-red: #ff5252;
+      --flower-yellow: #ffd700;
+      --flower-blue: #42a5f5;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      padding: 15px;
+      max-width: 950px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      padding: 15px 0;
+      margin-bottom: 15px;
+    }
+
+    h1 {
+      color: var(--accent-green);
+      font-size: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .pikmin-icon {
+      width: 28px;
+      height: 28px;
+      display: inline-block;
+      animation: float 2.5s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      50% { transform: translateY(-6px) rotate(5deg); }
+    }
+
+    .subtitle {
+      font-size: 0.85rem;
+      color: #666;
+      margin-top: 5px;
+    }
+
+    .controls {
+      background: var(--card-bg);
+      padding: 12px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      margin-bottom: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .btn {
+      background-color: var(--primary-green);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: transform 0.1s, background-color 0.2s;
+    }
+
+    .btn:hover {
+      background-color: var(--accent-green);
+      transform: scale(1.02);
+    }
+
+    /* 表格樣式 */
+    .table-container {
+      background: var(--card-bg);
+      border-radius: 12px;
+      overflow-x: auto;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      border: 1px solid var(--border-color);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+
+    th {
+      background-color: #eaf5ea;
+      color: var(--accent-green);
+      padding: 12px 10px;
+      font-weight: bold;
+      border-bottom: 2px solid var(--border-color);
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 10px;
+      border-bottom: 1px solid var(--border-color);
+      vertical-align: top;
+    }
+
+    tr:hover {
+      background-color: #f9fdf9;
+    }
+
+    .date-cell {
+      white-space: nowrap;
+      font-weight: bold;
+      color: #555;
+    }
+
+    .mushroom-input {
+      width: 50px;
+      padding: 4px 6px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      text-align: center;
+      font-weight: bold;
+      color: var(--accent-green);
+      font-size: 0.95rem;
+    }
+
+    .mushroom-input:focus {
+      outline: none;
+      border-color: var(--primary-green);
+      box-shadow: 0 0 0 2px rgba(118, 192, 67, 0.2);
+    }
+
+    .round-tag {
+      display: inline-block;
+      background: var(--accent-green);
+      color: white;
+      font-size: 0.75rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-bottom: 4px;
+      font-weight: bold;
+    }
+
+    /* 花朵徽章標示 */
+    .flower-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      border: 1px solid #ddd;
+      margin: 2px 0;
+      white-space: nowrap;
+    }
+
+    .flower-icon {
+      font-size: 0.9rem;
+      line-height: 1;
+    }
+
+    .star-icon::before { content: "★"; }
+    .circle-icon::before { content: "●"; }
+
+    /* 花朵顏色設定 */
+    .flower-white { background-color: var(--flower-white); color: #444; border-color: #ccc; }
+    .flower-red { background-color: #ffebee; color: #c62828; border-color: #ffcdd2; }
+    .flower-yellow { background-color: #fffde7; color: #f57f17; border-color: #fff9c4; }
+    .flower-blue { background-color: #e3f2fd; color: #1565c0; border-color: #bbdefb; }
+    .flower-any { background-color: #f1f8e9; color: #33691e; border-color: #ded; }
+
+    .star-icon.flower-white::before { color: #888; }
+    .star-icon.flower-red::before { color: var(--flower-red); }
+    .star-icon.flower-yellow::before { color: #fbc02d; }
+    .star-icon.flower-blue::before { color: var(--flower-blue); }
+
+    .circle-icon.flower-white::before { color: #aaa; }
+    .circle-icon.flower-red::before { color: var(--flower-red); }
+    .circle-icon.flower-yellow::before { color: #fbc02d; }
+    .circle-icon.flower-blue::before { color: var(--flower-blue); }
+
+    .petal-note {
+      font-size: 0.75rem;
+      color: #555;
+      background: #f0f7f0;
+      padding: 2px 6px;
+      border-radius: 4px;
+      display: inline-block;
+      margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>
+      <svg class="pikmin-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 2C12 2 15 5 15 8C15 11 12 13 12 13C12 13 9 11 9 8C9 5 12 2 12 2Z" fill="#76c043"/>
+        <path d="M12 13V21" stroke="#4f9628" stroke-width="2"/>
+        <circle cx="12" cy="18" r="3" fill="#ff5252"/>
+      </svg>
+      Pikmin Bloom 活動進度計算器
+    </h1>
+    <div class="subtitle">
+      ★ 主花（薊花）｜ ● 副花（萬壽菊）<br>
+      （估算公式：40人滿隊快走 1 片花瓣 ≈ 15 朵花，1 個精華/珍珠 = 2 片花瓣）
+    </div>
+  </header>
+
+  <div class="controls">
+    <span>預設每日打菇數：<strong>3 個</strong>（10/1 預設為 6 個）</span>
+    <button class="btn" onclick="resetDefaults()">重置預設值</button>
+  </div>
+
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>日期</th>
+          <th>菇數</th>
+          <th>當日任務、花朵需求與預估精華/珍珠</th>
+        </tr>
+      </thead>
+      <tbody id="schedule-body">
+        <!-- JS 動態生成 -->
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    // 種花所需花瓣與精華（珍珠）轉換公式
+    function getFlowerHTML(name, count, typeClass, iconClass) {
+      // 1 片花瓣 ≈ 15 朵花（快走狀況）
+      const petalsNeeded = Math.ceil(count / 15);
+      // 1 個精華/珍珠 = 2 片花瓣（花苞採集/雙倍產出）
+      const nectarNeeded = Math.ceil(petalsNeeded / 2);
+
+      return `
+        <span class="flower-badge ${typeClass}">
+          <i class="flower-icon ${iconClass} ${typeClass}"></i>${name} ${count}朵
+        </span>
+        <span class="petal-note">需約 ${petalsNeeded} 片花瓣 (約 ${nectarNeeded} 個精華/珍珠)</span>
+      `;
+    }
+
+    // 定義單輪關卡的任務與花朵需求
+    const STAGE_TASKS = [
+      // Stage 1
+      { id: "1-1", mushrooms: 0, text: "走 1000 步" },
+      { id: "1-2", mushrooms: 0, text: "拔出 2 隻皮克敏" },
+      { id: "1-3", mushrooms: 0, text: "完成 2 次探險" },
+      { id: "1-4", mushrooms: 2, text: `種 1000 朵花<br>${getFlowerHTML("一般花朵", 1000, "flower-any", "circle-icon")}` },
+      
+      // Stage 2
+      { id: "2-1", mushrooms: 0, text: "走 2000 步" },
+      { id: "2-2", mushrooms: 2, text: `種 1000 朵花<br>${getFlowerHTML("一般花朵", 1000, "flower-any", "circle-icon")}` },
+      { id: "2-3", mushrooms: 3, text: "拔出 3 隻皮克敏" },
+      { id: "2-4", mushrooms: 4, text: `種 500 朵薊花<br>${getFlowerHTML("普通薊花", 500, "flower-any", "star-icon")}` },
+      
+      // Stage 3
+      { id: "3-1", mushrooms: 0, text: "走 2000 步、完成 2 次探險" },
+      { id: "3-2", mushrooms: 3, text: `種 1500 朵白色萬壽菊<br>${getFlowerHTML("白色萬壽菊", 1500, "flower-white", "circle-icon")}` },
+      { id: "3-3", mushrooms: 4, text: `種 1500 朵紅色萬壽菊<br>${getFlowerHTML("紅色萬壽菊", 1500, "flower-red", "circle-icon")}` },
+      { id: "3-4", mushrooms: 5, text: `種 1500 朵黃色萬壽菊與 2000 朵紅色薊花<br>${getFlowerHTML("黃色萬壽菊", 1500, "flower-yellow", "circle-icon")}<br>${getFlowerHTML("紅色薊花", 2000, "flower-red", "star-icon")}` },
+      
+      // Stage 4
+      { id: "4-1", mushrooms: 3, text: "完成 3 次探險" },
+      { id: "4-2", mushrooms: 4, text: `種 2000 朵白色薊花<br>${getFlowerHTML("白色薊花", 2000, "flower-white", "star-icon")}` },
+      { id: "4-3", mushrooms: 4, text: `種 2000 朵黃色薊花與 1000 朵紅色萬壽菊<br>${getFlowerHTML("黃色薊花", 2000, "flower-yellow", "star-icon")}<br>${getFlowerHTML("紅色萬壽菊", 1000, "flower-red", "circle-icon")}` },
+      { id: "4-4", mushrooms: 5, text: `種 2000 朵藍色薊花與 2500 朵萬壽菊<br>${getFlowerHTML("藍色薊花", 2000, "flower-blue", "star-icon")}<br>${getFlowerHTML("普通萬壽菊", 2500, "flower-any", "circle-icon")}` }
+    ];
+
+    const DAYS_IN_OCTOBER = 31;
+    const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    
+    let dailyMushrooms = Array(DAYS_IN_OCTOBER).fill(3);
+    dailyMushrooms[0] = 6;
+
+    function calculateSchedule() {
+      const tbody = document.getElementById("schedule-body");
+      tbody.innerHTML = "";
+
+      let currentTaskIdx = 0;
+      let currentTaskProgress = 0;
+      let currentRound = 1;
+
+      for (let day = 1; day <= DAYS_IN_OCTOBER; day++) {
+        const dateObj = new Date(2026, 9, day);
+        const dateStr = `${day}/10 ${WEEKDAYS[dateObj.getDay()]}`;
+        
+        let availableMushrooms = dailyMushrooms[day - 1];
+        let dayTasksHTML = [];
+        let startingRound = currentRound;
+
+        while (availableMushrooms >= 0) {
+          let task = STAGE_TASKS[currentTaskIdx];
+          let neededMushrooms = task.mushrooms - currentTaskProgress;
+
+          if (task.mushrooms === 0) {
+            dayTasksHTML.push(`• <strong>${task.id}</strong>：${task.text}（完成）`);
+            currentTaskIdx++;
+            if (currentTaskIdx >= STAGE_TASKS.length) {
+              currentTaskIdx = 0;
+              currentRound++;
+            }
+            continue;
+          }
+
+          if (availableMushrooms >= neededMushrooms) {
+            availableMushrooms -= neededMushrooms;
+            currentTaskProgress = 0;
+            dayTasksHTML.push(`• <strong>${task.id}</strong>：${task.text}（打 ${neededMushrooms} 菇，完成）`);
+            
+            currentTaskIdx++;
+            if (currentTaskIdx >= STAGE_TASKS.length) {
+              dayTasksHTML.push(`🌟 <strong>完成第 ${currentRound} 輪通關！</strong>`);
+              currentTaskIdx = 0;
+              currentRound++;
+            }
+
+            if (availableMushrooms === 0) break;
+          } else {
+            currentTaskProgress += availableMushrooms;
+            dayTasksHTML.push(`• <strong>${task.id}</strong>：${task.text}（打 ${availableMushrooms} 菇，進度 ${currentTaskProgress}/${task.mushrooms}）`);
+            availableMushrooms = 0;
+            break;
+          }
+        }
+
+        const tr = document.createElement("tr");
+        let roundTag = `<div class="round-tag">第 ${startingRound} 輪</div><br>`;
+        
+        tr.innerHTML = `
+          <td class="date-cell">${dateStr}</td>
+          <td>
+            <input type="number" class="mushroom-input" min="0" max="20" 
+                   value="${dailyMushrooms[day - 1]}" 
+                   onchange="updateMushrooms(${day - 1}, this.value)">
+          </td>
+          <td>
+            ${roundTag}
+            ${dayTasksHTML.join("<br><br>")}
+          </td>
+        `;
+
+        tbody.appendChild(tr);
+      }
+    }
+
+    function updateMushrooms(dayIndex, value) {
+      let val = parseInt(value, 10);
+      if (isNaN(val) || val < 0) val = 0;
+      dailyMushrooms[dayIndex] = val;
+      calculateSchedule();
+    }
+
+    function resetDefaults() {
+      dailyMushrooms = Array(DAYS_IN_OCTOBER).fill(3);
+      dailyMushrooms[0] = 6;
+      calculateSchedule();
+    }
+
+    window.onload = calculateSchedule;
+  </script>
+</body>
+</html>
+
